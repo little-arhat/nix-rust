@@ -1,5 +1,5 @@
 use std::os::errno;
-use std::num::from_uint;
+use std::num::from_i32;
 
 pub use self::consts::*;
 pub use self::consts::Errno::*;
@@ -19,7 +19,7 @@ macro_rules! impl_errno {
 }
 
 fn last() -> Errno {
-    from_uint(errno()).unwrap_or(UnknownErrno)
+    from_i32(errno()).unwrap_or(UnknownErrno)
 }
 
 fn desc(errno: Errno) -> &'static str {
@@ -658,4 +658,211 @@ mod consts {
     pub const EDEADLOCK:   Errno = Errno::EDEADLK;
 
     pub const EL2NSYNC: Errno = Errno::UnknownErrno;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use nixtest::assert_errno_eq;
+    use libc::c_int;
+
+    macro_rules! check_errno {
+        ($errno:ident) => {{
+            assert_errno_eq(stringify!($errno), $errno as c_int);
+        }};
+
+        ($errno:ident, $($rest:ident),+) => {{
+            check_errno!($errno);
+            check_errno!($($rest),*);
+        }};
+    }
+
+    #[test]
+    pub fn test_errno_values() {
+        check_errno!(
+            EPERM,
+            ENOENT,
+            ESRCH,
+            EINTR,
+            EIO,
+            ENXIO,
+            E2BIG,
+            ENOEXEC,
+            EBADF,
+            ECHILD,
+            EAGAIN,
+            ENOMEM,
+            EACCES,
+            EFAULT,
+            ENOTBLK,
+            EBUSY,
+            EEXIST,
+            EXDEV,
+            ENODEV,
+            ENOTDIR,
+            EISDIR,
+            EINVAL,
+            ENFILE,
+            EMFILE,
+            ENOTTY,
+            ETXTBSY,
+            EFBIG,
+            ENOSPC,
+            ESPIPE,
+            EROFS,
+            EMLINK,
+            EPIPE,
+            EDOM,
+            ERANGE,
+            EDEADLK,
+            ENAMETOOLONG,
+            ENOLCK,
+            ENOSYS,
+            ENOTEMPTY,
+            ELOOP,
+            ENOMSG,
+            EIDRM);
+
+        check_errno!(
+            EINPROGRESS,
+            EALREADY,
+            ENOTSOCK,
+            EDESTADDRREQ,
+            EMSGSIZE,
+            EPROTOTYPE,
+            ENOPROTOOPT,
+            EPROTONOSUPPORT,
+            ESOCKTNOSUPPORT,
+            EPFNOSUPPORT,
+            EAFNOSUPPORT,
+            EADDRINUSE,
+            EADDRNOTAVAIL,
+            ENETDOWN,
+            ENETUNREACH,
+            ENETRESET,
+            ECONNABORTED,
+            ECONNRESET,
+            ENOBUFS,
+            EISCONN,
+            ENOTCONN,
+            ESHUTDOWN,
+            ETOOMANYREFS,
+            ETIMEDOUT,
+            ECONNREFUSED,
+            EHOSTDOWN,
+            EHOSTUNREACH);
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    pub fn test_linux_errnos() {
+        check_errno!(
+            ECHRNG,
+            EL2NSYNC,
+            EL3HLT,
+            EL3RST,
+            ELNRNG,
+            EUNATCH,
+            ENOCSI,
+            EL2HLT,
+            EBADE,
+            EBADR,
+            EXFULL,
+            ENOANO,
+            EBADRQC,
+            EBADSLT,
+            EBFONT,
+            ENOSTR,
+            ENODATA,
+            ETIME,
+            ENOSR,
+            ENONET,
+            ENOPKG,
+            EREMOTE,
+            ENOLINK,
+            EADV,
+            ESRMNT,
+            ECOMM,
+            EPROTO,
+            EMULTIHOP,
+            EDOTDOT,
+            EBADMSG,
+            EOVERFLOW,
+            ENOTUNIQ,
+            EBADFD,
+            EREMCHG,
+            ELIBACC,
+            ELIBBAD,
+            ELIBSCN,
+            ELIBMAX,
+            ELIBEXEC,
+            EILSEQ,
+            ERESTART,
+            ESTRPIPE,
+            EUSERS,
+            EOPNOTSUPP,
+            ESTALE,
+            EUCLEAN,
+            ENOTNAM,
+            ENAVAIL,
+            EISNAM,
+            EREMOTEIO,
+            EDQUOT,
+            ENOMEDIUM,
+            EMEDIUMTYPE,
+            ECANCELED,
+            ENOKEY,
+            EKEYEXPIRED,
+            EKEYREVOKED,
+            EKEYREJECTED,
+            EOWNERDEAD,
+            ENOTRECOVERABLE,
+            ERFKILL,
+            EHWPOISON);
+    }
+
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    pub fn test_darwin_errnos() {
+        check_errno!(
+            ENOTSUP,
+            EPROCLIM,
+            EUSERS,
+            EDQUOT,
+            ESTALE,
+            EREMOTE,
+            EBADRPC,
+            ERPCMISMATCH,
+            EPROGUNAVAIL,
+            EPROGMISMATCH,
+            EPROCUNAVAIL,
+            EFTYPE,
+            EAUTH,
+            ENEEDAUTH,
+            EPWROFF,
+            EDEVERR,
+            EOVERFLOW,
+            EBADEXEC,
+            EBADARCH,
+            ESHLIBVERS,
+            EBADMACHO,
+            ECANCELED,
+            EILSEQ,
+            ENOATTR,
+            EBADMSG,
+            EMULTIHOP,
+            ENODATA,
+            ENOLINK,
+            ENOSR,
+            ENOSTR,
+            EPROTO,
+            ETIME,
+            EOPNOTSUPP,
+            ENOPOLICY,
+            ENOTRECOVERABLE,
+            EOWNERDEAD,
+            EQFULL
+        );
+    }
 }
