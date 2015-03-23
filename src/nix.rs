@@ -1,6 +1,6 @@
 use libc;
 use std::ffi::{OsStr, AsOsStr};
-use std::os::unix::OsStrExt;
+use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::slice::bytes;
 
@@ -21,6 +21,13 @@ impl NixError {
 
     pub fn invalid_argument() -> NixError {
         NixError::Sys(EINVAL)
+    }
+
+    pub fn errno(&self) -> Errno {
+        match *self {
+            NixError::Sys(errno) => errno,
+            NixError::InvalidPath => Errno::EINVAL,
+        }
     }
 }
 

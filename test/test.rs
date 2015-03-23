@@ -1,4 +1,4 @@
-#![feature(core, libc, net, path, std_misc)]
+#![feature(core, io_ext, libc)]
 
 extern crate nix;
 extern crate libc;

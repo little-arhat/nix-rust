@@ -35,7 +35,6 @@ pub use libc::{
     in_addr,
     in6_addr,
     sockaddr,
-    sockaddr_storage,
     sockaddr_in,
     sockaddr_in6,
     sockaddr_un,
@@ -47,7 +46,18 @@ pub use self::multicast::{
 };
 pub use self::consts::*;
 
-#[derive(Copy, PartialEq, Eq, Debug)]
+#[cfg(any(not(target_os = "linux"), not(target_arch = "x86")))]
+pub use libc::sockaddr_storage;
+
+// Working around rust-lang/rust#23425
+#[cfg(all(target_os = "linux", target_arch = "x86"))]
+pub struct sockaddr_storage {
+    pub ss_family: sa_family_t,
+    pub __ss_align: u32,
+    pub __ss_pad2: [u8; 120],
+}
+
+#[derive(Copy, PartialEq, Eq, Debug, FromPrimitive)]
 #[repr(i32)]
 pub enum SockType {
     Stream = consts::SOCK_STREAM,
@@ -132,7 +142,7 @@ pub fn accept(sockfd: Fd) -> NixResult<Fd> {
 /// Accept a connection on a socket
 ///
 /// [Further reading](http://man7.org/linux/man-pages/man2/accept.2.html)
-#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
 pub fn accept4(sockfd: Fd, flags: SockFlag) -> NixResult<Fd> {
     use libc::sockaddr;
 
@@ -162,7 +172,7 @@ pub fn accept4(sockfd: Fd, flags: SockFlag) -> NixResult<Fd> {
 /// Accept a connection on a socket
 ///
 /// [Further reading](http://man7.org/linux/man-pages/man2/accept.2.html)
-#[cfg(any(target_os = "macos", target_os = "ios"))]
+#[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
 pub fn accept4(sockfd: Fd, flags: SockFlag) -> NixResult<Fd> {
     accept4_polyfill(sockfd, flags)
 }
@@ -330,7 +340,7 @@ pub fn getsockname(fd: Fd) -> NixResult<SockAddr> {
     }
 }
 
-unsafe fn sockaddr_storage_to_addr(
+pub unsafe fn sockaddr_storage_to_addr(
     addr: &sockaddr_storage,
     len: usize) -> NixResult<SockAddr> {
 

@@ -1,9 +1,10 @@
 use {NixResult, NixError, from_ffi};
 use super::{ffi, consts, SockOpt};
 use errno::Errno;
+use sys::time::TimeVal;
 use libc::{c_int, uint8_t, c_void, socklen_t};
 use std::mem;
-use std::os::unix::Fd;
+use std::os::unix::io::Fd;
 
 // Helper to generate the sockopt accessors
 // TODO: Figure out how to ommit gets when not supported by opt
@@ -74,6 +75,9 @@ sockopt_impl!(Linger, consts::SO_LINGER, super::linger);
 sockopt_impl!(IpAddMembership, consts::IP_ADD_MEMBERSHIP, super::ip_mreq);
 sockopt_impl!(IpDropMembership, consts::IP_DROP_MEMBERSHIP, super::ip_mreq);
 sockopt_impl!(IpMulticastTtl, consts::IP_MULTICAST_TTL, u8);
+sockopt_impl!(ReceiveTimeout, consts::SO_RCVTIMEO, TimeVal);
+sockopt_impl!(SendTimeout, consts::SO_SNDTIMEO, TimeVal);
+sockopt_impl!(Broadcast, consts::SO_BROADCAST, bool);
 
 /*
  *

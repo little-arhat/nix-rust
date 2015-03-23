@@ -4,7 +4,7 @@
 //! defined in.
 #![crate_name = "nix"]
 
-#![feature(collections, core, net, linkage, libc, os, path, std_misc)]
+#![feature(collections, core, io_ext, linkage, libc, std_misc)]
 #![allow(non_camel_case_types)]
 
 #[macro_use]
@@ -32,10 +32,10 @@ pub mod features;
 #[cfg(unix)]
 pub mod fcntl;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub mod mount;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub mod sched;
 
 #[cfg(unix)]
@@ -51,7 +51,7 @@ pub mod unistd;
  */
 
 use std::ffi::OsStr;
-use std::os::unix::OsStrExt;
+use std::os::unix::ffi::OsStrExt;
 
 /// Converts a value to an external (FFI) string representation
 trait AsExtStr {
