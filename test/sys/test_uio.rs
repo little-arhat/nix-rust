@@ -27,20 +27,20 @@ fn test_writev() {
     // FileDesc will close its filedesc (reader).
     let mut read_buf: Vec<u8> = iter::repeat(0u8).take(128 * 16).collect();
     // Blocking io, should write all data.
-    let write_res = writev(writer, iovecs.as_slice());
+    let write_res = writev(writer, &iovecs);
     // Successful write
     assert!(write_res.is_ok());
     let written = write_res.ok().unwrap();
     // Check whether we written all data
     assert_eq!(to_write.len(), written);
-    let read_res = read(reader, read_buf.as_mut_slice());
+    let read_res = read(reader, &mut read_buf[..]);
     // Successful read
     assert!(read_res.is_ok());
     let read = read_res.ok().unwrap() as usize;
     // Check we have read as much as we written
     assert_eq!(read, written);
     // Check equality of written and read data
-    assert_eq!(to_write.as_slice(), read_buf.as_slice());
+    assert_eq!(&to_write, &read_buf);
     let close_res = close(writer);
     assert!(close_res.is_ok());
     let close_res = close(reader);
@@ -62,16 +62,16 @@ fn test_readv() {
     }
     let mut iovecs = Vec::with_capacity(storage.len());
     for v in storage.iter_mut() {
-        iovecs.push(IoVec::from_mut_slice(v.as_mut_slice()));
+        iovecs.push(IoVec::from_mut_slice(&mut v[..]));
     }
     let pipe_res = pipe();
     assert!(pipe_res.is_ok());
     let (reader, writer) = pipe_res.ok().unwrap();
     // Blocking io, should write all data.
-    let write_res = write(writer, to_write.as_slice());
+    let write_res = write(writer, &to_write);
     // Successful write
     assert!(write_res.is_ok());
-    let read_res = readv(reader, iovecs.as_mut_slice());
+    let read_res = readv(reader, &mut iovecs[..]);
     assert!(read_res.is_ok());
     let read = read_res.ok().unwrap();
     // Check whether we've read all data
@@ -84,7 +84,7 @@ fn test_readv() {
     // Check whether iovecs contain all written data
     assert_eq!(read_buf.len(), to_write.len());
     // Check equality of written and read data
-    assert_eq!(read_buf.as_slice(), to_write.as_slice());
+    assert_eq!(&read_buf, &to_write);
     let close_res = close(reader);
     assert!(close_res.is_ok());
     let close_res = close(writer);

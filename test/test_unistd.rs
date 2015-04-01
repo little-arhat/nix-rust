@@ -50,11 +50,11 @@ fn test_execve() {
             dup(writer).unwrap();
             // exec!
             execve(&CString::new(SH_PATH).unwrap(),
-                   &[CString::new(b"").unwrap(),
-                     CString::new(b"-c").unwrap(),
-                     CString::new(b"echo nix!!! && echo foo=$foo && echo baz=$baz").unwrap()],
-                   &[CString::new(b"foo=bar").unwrap(),
-                     CString::new(b"baz=quux").unwrap()]).unwrap();
+                   &[CString::new(b"".as_ref()).unwrap(),
+                     CString::new(b"-c".as_ref()).unwrap(),
+                     CString::new(b"echo nix!!! && echo foo=$foo && echo baz=$baz".as_ref()).unwrap()],
+                   &[CString::new(b"foo=bar".as_ref()).unwrap(),
+                     CString::new(b"baz=quux".as_ref()).unwrap()]).unwrap();
         },
         Parent(child_pid) => {
             // Wait for the child to exit.
