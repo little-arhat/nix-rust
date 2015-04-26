@@ -3,7 +3,7 @@
 
 use libc;
 use errno::Errno;
-use core::mem;
+use std::mem;
 use {Error, Result};
 
 pub use libc::consts::os::posix88::{
@@ -96,7 +96,7 @@ pub mod signal {
     // actually a giant union. Currently we're only interested in these fields,
     // however.
     #[repr(C)]
-    #[derive(Copy)]
+    #[derive(Clone, Copy)]
     pub struct siginfo {
         si_signo: libc::c_int,
         si_errno: libc::c_int,
@@ -117,14 +117,14 @@ pub mod signal {
 
     #[repr(C)]
     #[cfg(target_pointer_width = "32")]
-    #[derive(Copy)]
+    #[derive(Clone, Copy)]
     pub struct sigset_t {
         __val: [libc::c_ulong; 32],
     }
 
     #[repr(C)]
     #[cfg(target_pointer_width = "64")]
-    #[derive(Copy)]
+    #[derive(Clone, Copy)]
     pub struct sigset_t {
         __val: [libc::c_ulong; 16],
     }
@@ -249,7 +249,7 @@ pub mod signal {
     // This structure has more fields, but we're not all that interested in
     // them.
     #[repr(C)]
-    #[derive(Copy)]
+    #[derive(Clone, Copy)]
     pub struct siginfo {
         pub si_signo: libc::c_int,
         pub si_errno: libc::c_int,
@@ -297,7 +297,7 @@ mod ffi {
     }
 }
 
-#[derive(Copy)]
+#[derive(Clone, Copy)]
 pub struct SigSet {
     sigset: sigset_t
 }
@@ -350,12 +350,11 @@ impl SigAction {
     }
 }
 
-pub fn sigaction(signum: SigNum, sigaction: &SigAction) -> Result<SigAction> {
-    let mut oldact = unsafe { mem::uninitialized::<sigaction_t>() };
+pub unsafe fn sigaction(signum: SigNum, sigaction: &SigAction) -> Result<SigAction> {
+    let mut oldact = mem::uninitialized::<sigaction_t>();
 
-    let res = unsafe {
-        ffi::sigaction(signum, &sigaction.sigaction as *const sigaction_t, &mut oldact as *mut sigaction_t)
-    };
+    let res =
+        ffi::sigaction(signum, &sigaction.sigaction as *const sigaction_t, &mut oldact as *mut sigaction_t);
 
     if res < 0 {
         return Err(Error::Sys(Errno::last()));

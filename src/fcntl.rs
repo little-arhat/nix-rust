@@ -7,7 +7,7 @@ pub use self::consts::*;
 pub use self::ffi::flock;
 
 // Re-export Fd defined in std
-pub type Fd = ::std::os::unix::io::Fd;
+pub type Fd = ::std::os::unix::io::RawFd;
 
 #[allow(dead_code)]
 mod ffi {
@@ -19,7 +19,7 @@ mod ffi {
         use libc::{c_int, c_short, off_t, pid_t};
 
         #[repr(C)]
-        #[derive(Copy)]
+        #[derive(Clone, Copy)]
         pub struct flock {
             pub l_type: c_short,
             pub l_whence: c_short,
@@ -47,7 +47,7 @@ mod ffi {
         use libc::{c_int, c_short, off_t, pid_t};
 
         #[repr(C)]
-        #[derive(Copy)]
+        #[derive(Clone, Copy)]
         pub struct flock {
             pub l_start: off_t,
             pub l_len: off_t,

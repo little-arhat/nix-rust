@@ -4,7 +4,6 @@ use errno::Errno;
 use libc;
 use std::{fmt, hash, mem, net, ptr};
 use std::ffi::{CStr, OsStr};
-use std::num::Int;
 use std::path::Path;
 use std::os::unix::ffi::OsStrExt;
 
@@ -17,7 +16,7 @@ use std::os::unix::ffi::OsStrExt;
  */
 
 #[repr(i32)]
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, FromPrimitive)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum AddressFamily {
     Unix = consts::AF_UNIX,
     Inet = consts::AF_INET,
@@ -71,8 +70,8 @@ impl InetAddr {
     /// Gets the port number associated with this socket address
     pub fn port(&self) -> u16 {
         match *self {
-            InetAddr::V6(ref sa) => Int::from_be(sa.sin6_port),
-            InetAddr::V4(ref sa) => Int::from_be(sa.sin_port),
+            InetAddr::V6(ref sa) => u16::from_be(sa.sin6_port),
+            InetAddr::V4(ref sa) => u16::from_be(sa.sin_port),
         }
     }
 
@@ -232,7 +231,7 @@ impl Ipv4Addr {
     }
 
     pub fn octets(&self) -> [u8; 4] {
-        let bits = Int::from_be(self.0.s_addr);
+        let bits = u32::from_be(self.0.s_addr);
         [(bits >> 24) as u8, (bits >> 16) as u8, (bits >> 8) as u8, bits as u8]
     }
 
@@ -276,7 +275,7 @@ impl fmt::Display for Ipv4Addr {
  *
  */
 
-#[derive(Copy)]
+#[derive(Clone, Copy)]
 pub struct Ipv6Addr(pub libc::in6_addr);
 
 impl Ipv6Addr {
@@ -302,14 +301,14 @@ impl Ipv6Addr {
 
     /// Return the eight 16-bit segments that make up this address
     pub fn segments(&self) -> [u16; 8] {
-        [Int::from_be(self.0.s6_addr[0]),
-         Int::from_be(self.0.s6_addr[1]),
-         Int::from_be(self.0.s6_addr[2]),
-         Int::from_be(self.0.s6_addr[3]),
-         Int::from_be(self.0.s6_addr[4]),
-         Int::from_be(self.0.s6_addr[5]),
-         Int::from_be(self.0.s6_addr[6]),
-         Int::from_be(self.0.s6_addr[7])]
+        [u16::from_be(self.0.s6_addr[0]),
+         u16::from_be(self.0.s6_addr[1]),
+         u16::from_be(self.0.s6_addr[2]),
+         u16::from_be(self.0.s6_addr[3]),
+         u16::from_be(self.0.s6_addr[4]),
+         u16::from_be(self.0.s6_addr[5]),
+         u16::from_be(self.0.s6_addr[6]),
+         u16::from_be(self.0.s6_addr[7])]
     }
 
     pub fn to_std(&self) -> net::Ipv6Addr {
@@ -349,8 +348,8 @@ impl UnixAddr {
                 }
 
                 ptr::copy(
-                    ret.sun_path.as_mut_ptr(),
                     bytes.as_ptr() as *const i8,
+                    ret.sun_path.as_mut_ptr(),
                     bytes.len());
 
                 Ok(UnixAddr(ret))

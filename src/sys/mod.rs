@@ -5,7 +5,8 @@ pub mod epoll;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod event;
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
+// TODO: switch from feature flags to conditional builds
+#[cfg(feature = "eventfd")]
 pub mod eventfd;
 
 #[cfg(not(target_os = "ios"))]

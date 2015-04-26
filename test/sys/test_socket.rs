@@ -1,6 +1,5 @@
 use nix::sys::socket::{InetAddr, UnixAddr, getsockname};
 use std::{mem, net};
-use std::num::Int;
 use std::path::Path;
 use std::str::FromStr;
 use std::os::unix::io::AsRawFd;
@@ -13,8 +12,11 @@ pub fn test_inetv4_addr_to_sock_addr() {
 
     match addr {
         InetAddr::V4(addr) => {
-            assert_eq!(addr.sin_addr.s_addr, 0x7f000001.to_be());
-            assert_eq!(addr.sin_port, 3000.to_be());
+            let ip: u32 = 0x7f000001;
+            let port: u16 = 3000;
+
+            assert_eq!(addr.sin_addr.s_addr, ip.to_be());
+            assert_eq!(addr.sin_port, port.to_be());
         }
         _ => panic!("nope"),
     }
@@ -45,4 +47,19 @@ pub fn test_getsockname() {
     let res = getsockname(sock.as_raw_fd()).unwrap();
 
     assert_eq!(addr, res.to_str());
+}
+
+#[test]
+pub fn test_socketpair() {
+    use nix::unistd::{read, write};
+    use nix::sys::socket::{socketpair, AddressFamily, SockType, SockFlag};
+
+    let (fd1, fd2) = socketpair(AddressFamily::Unix, SockType::Stream, 0,
+                                SockFlag::empty())
+                     .unwrap();
+    write(fd1, b"hello").unwrap();
+    let mut buf = [0;5];
+    read(fd2, &mut buf).unwrap();
+
+    assert_eq!(&buf[..], b"hello");
 }

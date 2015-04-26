@@ -4,11 +4,10 @@
 use {Error, Result, from_ffi};
 use errno::Errno;
 use features;
-use fcntl::{fcntl, FD_CLOEXEC, O_NONBLOCK};
+use fcntl::{fcntl, Fd, FD_CLOEXEC, O_NONBLOCK};
 use fcntl::FcntlArg::{F_SETFD, F_SETFL};
 use libc::{c_void, c_int, socklen_t, size_t};
 use std::{fmt, mem, ptr};
-use std::os::unix::prelude::*;
 
 mod addr;
 mod consts;
@@ -57,7 +56,7 @@ pub struct sockaddr_storage {
     pub __ss_pad2: [u8; 120],
 }
 
-#[derive(Copy, PartialEq, Eq, Debug, FromPrimitive)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(i32)]
 pub enum SockType {
     Stream = consts::SOCK_STREAM,
@@ -106,6 +105,40 @@ pub fn socket(domain: AddressFamily, ty: SockType, flags: SockFlag) -> Result<Fd
     Ok(res)
 }
 
+/// Create a pair of connected sockets
+///
+/// [Further reading](http://man7.org/linux/man-pages/man2/socketpair.2.html)
+pub fn socketpair(domain: AddressFamily, ty: SockType, protocol: c_int,
+                  flags: SockFlag) -> Result<(Fd, Fd)> {
+    let mut ty = ty as c_int;
+    let feat_atomic = features::socket_atomic_cloexec();
+
+    if feat_atomic {
+        ty = ty | flags.bits();
+    }
+    let mut fds = [-1, -1];
+    let res = unsafe {
+        ffi::socketpair(domain as c_int, ty, protocol, fds.as_mut_ptr())
+    };
+
+    if res < 0 {
+        return Err(Error::Sys(Errno::last()));
+    }
+
+    if !feat_atomic {
+        if flags.contains(SOCK_CLOEXEC) {
+            try!(fcntl(fds[0], F_SETFD(FD_CLOEXEC)));
+            try!(fcntl(fds[1], F_SETFD(FD_CLOEXEC)));
+        }
+
+        if flags.contains(SOCK_NONBLOCK) {
+            try!(fcntl(fds[0], F_SETFL(O_NONBLOCK)));
+            try!(fcntl(fds[1], F_SETFL(O_NONBLOCK)));
+        }
+    }
+    Ok((fds[0], fds[1]))
+}
+
 /// Listen for connections on a socket
 ///
 /// [Further reading](http://man7.org/linux/man-pages/man2/listen.2.html)
@@ -142,37 +175,6 @@ pub fn accept(sockfd: Fd) -> Result<Fd> {
 /// Accept a connection on a socket
 ///
 /// [Further reading](http://man7.org/linux/man-pages/man2/accept.2.html)
-#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
-pub fn accept4(sockfd: Fd, flags: SockFlag) -> Result<Fd> {
-    use libc::sockaddr;
-
-    type F = unsafe extern "C" fn(c_int, *mut sockaddr, *mut socklen_t, c_int) -> c_int;
-
-    extern {
-        #[linkage = "extern_weak"]
-        static accept4: *const ();
-    }
-
-    if !accept4.is_null() {
-        let res = unsafe {
-            mem::transmute::<*const (), F>(accept4)(
-                sockfd, ptr::null_mut(), ptr::null_mut(), flags.bits)
-        };
-
-        if res < 0 {
-            return Err(Error::Sys(Errno::last()));
-        }
-
-        Ok(res)
-    } else {
-        accept4_polyfill(sockfd, flags)
-    }
-}
-
-/// Accept a connection on a socket
-///
-/// [Further reading](http://man7.org/linux/man-pages/man2/accept.2.html)
-#[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
 pub fn accept4(sockfd: Fd, flags: SockFlag) -> Result<Fd> {
     accept4_polyfill(sockfd, flags)
 }
@@ -248,7 +250,7 @@ pub fn sendto(fd: Fd, buf: &[u8], addr: &SockAddr, flags: SockMessageFlags) -> R
 }
 
 #[repr(C)]
-#[derive(Copy, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct linger {
     pub l_onoff: c_int,
     pub l_linger: c_int
@@ -276,31 +278,26 @@ pub enum SockLevel {
 /// Represents a socket option that can be accessed or set. Used as an argument
 /// to `getsockopt` and `setsockopt`.
 pub trait SockOpt : Copy + fmt::Debug {
-    /// Type of `getsockopt` return value
-    type Get;
-
-    /// Type of value used to set the socket option. Used as the argument to
-    /// `setsockopt`.
-    type Set;
+    type Val;
 
     #[doc(hidden)]
-    fn get(&self, fd: Fd, level: c_int) -> Result<Self::Get>;
+    fn get(&self, fd: Fd, level: c_int) -> Result<Self::Val>;
 
     #[doc(hidden)]
-    fn set(&self, fd: Fd, level: c_int, val: Self::Set) -> Result<()>;
+    fn set(&self, fd: Fd, level: c_int, val: &Self::Val) -> Result<()>;
 }
 
 /// Get the current value for the requested socket option
 ///
 /// [Further reading](http://man7.org/linux/man-pages/man2/setsockopt.2.html)
-pub fn getsockopt<O: SockOpt>(fd: Fd, level: SockLevel, opt: O) -> Result<O::Get> {
+pub fn getsockopt<O: SockOpt>(fd: Fd, level: SockLevel, opt: O) -> Result<O::Val> {
     opt.get(fd, level as c_int)
 }
 
 /// Sets the value for the requested socket option
 ///
 /// [Further reading](http://man7.org/linux/man-pages/man2/setsockopt.2.html)
-pub fn setsockopt<O: SockOpt>(fd: Fd, level: SockLevel, opt: O, val: O::Set) -> Result<()> {
+pub fn setsockopt<O: SockOpt>(fd: Fd, level: SockLevel, opt: O, val: &O::Val) -> Result<()> {
     opt.set(fd, level as c_int, val)
 }
 
